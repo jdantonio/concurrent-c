@@ -1,9 +1,6 @@
 #include <catch.hh>
 #include <Atom.h>
 
-namespace Concurrent
-{
-
 TEST_CASE("Initialization", "[Atom]")
 {
   typedef uint64_t ValueType;
@@ -104,5 +101,3 @@ TEST_CASE("Swap (without validation)", "[Atom]")
   actual = subject.Value();
   REQUIRE( actual == expected );
 }
-
-} // namespace Concurrent

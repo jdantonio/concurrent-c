@@ -3,9 +3,6 @@
 #include <mutex>
 #include <functional>
 
-namespace Concurrent
-{
-
 /**
  * Atoms provide a way to manage shared, synchronous, independent state.
  *
@@ -90,7 +87,7 @@ public:
     std::lock_guard<std::mutex> rlock(mReadMutex);
     std::lock_guard<std::mutex> wlock(mWriteMutex);
 
-    if (mValue == oldValue && mValidator(newValue))
+    if (mValue == oldValue && isValid(newValue))
     {
       mValue = newValue;
       return true;
@@ -116,7 +113,7 @@ public:
     std::lock_guard<std::mutex> rlock(mReadMutex);
     std::lock_guard<std::mutex> wlock(mWriteMutex);
 
-    if (mValidator(newValue))
+    if (isValid(newValue))
     {
       mValue = newValue;
     }
@@ -150,7 +147,7 @@ public:
 
     T newValue = func(mValue);
 
-    if (mValidator(newValue))
+    if (isValid(newValue))
     {
       mValue = newValue;
     }
@@ -199,6 +196,19 @@ public:
     return newValue;
   }
 
+protected:
+
+  /**
+   * Validates the new value against the validator function.
+   *
+   * @param newValue The value to be validated.
+   * @return `true` is the new value is valid else `false`.
+   */
+  bool isValid(const T& newValue)
+  {
+    return mValidator(newValue);
+  }
+
 private:
 
   T mValue;
@@ -208,5 +218,3 @@ private:
   std::mutex mReadMutex;
   std::mutex mWriteMutex;
 };
-
-} // namespace Concurrent
