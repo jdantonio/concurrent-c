@@ -13,88 +13,91 @@ TEST_CASE("Initialization", "[Atom]")
 
   expected = initial;
   actual = subject.Value();
-  REQUIRE(actual == expected);
+
+  REQUIRE( actual == expected );
 }
 
-//TEST("[Atom]", CompareAndSetWithoutValidationTest)
-//{
-    //typedef uint64_t ValueType;
-    //typedef Atom<ValueType> AtomType;
+TEST_CASE("CompareAndSet (without validation)", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
 
-    //ValueType initial, actual, expected;
+  ValueType initial, actual, expected;
 
-    //initial = 0;
-    //AtomType subject(initial);
+  initial = 0;
+  AtomType subject(initial);
 
-    //expected = 100;
-    //ASSERT_TRUE(subject.CompareAndSet(initial, expected));
-    //actual = subject.Value();
-    //ASSERT_EQ(actual, expected);
+  expected = 100;
+  REQUIRE( subject.CompareAndSet(initial, expected) );
 
-    //expected = subject.Value();
-    //ASSERT_FALSE(subject.CompareAndSet(expected + 1, expected));
-    //actual = subject.Value();
-    //ASSERT_EQ(actual, expected);
-//}
+  actual = subject.Value();
+  REQUIRE( actual == expected);
 
-//TEST("[Atom]", ResetWithValueWithoutValidationTest)
-//{
-    //typedef uint64_t ValueType;
-    //typedef Atom<ValueType> AtomType;
+  expected = subject.Value();
+  REQUIRE(!subject.CompareAndSet(expected + 1, expected) );
 
-    //ValueType actual, expected;
+  actual = subject.Value();
+  REQUIRE( actual == expected );
+}
 
-    //AtomType subject(0);
+TEST_CASE("Reset with value (without validation)", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
 
-    //expected = 100;
+  ValueType actual, expected;
 
-    //actual = subject.Reset(expected);
-    //ASSERT_EQ(actual, expected);
+  AtomType subject(0);
 
-    //actual = subject.Value();
-    //ASSERT_EQ(actual, expected);
-//}
+  expected = 100;
 
-//TEST("[Atom]", ResetWithLambdaWithoutValidationTest)
-//{
-    //typedef uint64_t ValueType;
-    //typedef Atom<ValueType> AtomType;
+  actual = subject.Reset(expected);
+  REQUIRE( actual == expected );
 
-    //ValueType initial, actual, expected;
-    //ValueType incrementer = 200;
+  actual = subject.Value();
+  REQUIRE( actual == expected );
+}
 
-    //initial = 0;
-    //AtomType subject(initial);
+TEST_CASE("Reset with lambda (without validation)", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
 
-    //expected = initial + incrementer;
+  ValueType initial, actual, expected;
+  ValueType incrementer = 200;
 
-    //actual = subject.Reset(
-            //[incrementer](ValueType currentValue)
-            //{ return currentValue + incrementer; });
-    //ASSERT_EQ(actual, expected);
+  initial = 0;
+  AtomType subject(initial);
 
-    //actual = subject.Value();
-    //ASSERT_EQ(actual, expected);
-//}
+  expected = initial + incrementer;
 
-//TEST("[Atom]", SwapWithoutValidationTest)
-//{
-    //typedef uint64_t ValueType;
-    //typedef Atom<ValueType> AtomType;
+  actual = subject.Reset(
+      [incrementer](ValueType currentValue)
+      { return currentValue + incrementer; });
+  REQUIRE( actual == expected );
 
-    //ValueType initial, actual, expected;
-    //ValueType incrementer = 200;
+  actual = subject.Value();
+  REQUIRE( actual == expected  );
+}
 
-    //initial = 0;
-    //AtomType subject(initial);
+TEST_CASE("Swap (without validation)", "[Atom]")
+{
 
-    //expected = initial + incrementer;
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
+  ValueType initial, actual, expected;
+  ValueType incrementer = 200;
 
-    //actual = subject.Swap(
-            //[incrementer](ValueType currentValue)
-            //{ return currentValue + incrementer; });
-    //ASSERT_EQ(actual, expected);
+  initial = 0;
+  AtomType subject(initial);
 
-    //actual = subject.Value();
-    //ASSERT_EQ(actual, expected);
-//}
+  expected = initial + incrementer;
+
+  actual = subject.Swap(
+      [incrementer](ValueType currentValue)
+      { return currentValue + incrementer; });
+  REQUIRE( actual == expected );
+
+  actual = subject.Value();
+  REQUIRE( actual == expected );
+}
