@@ -206,19 +206,24 @@ public:
    *       when using this method and a custom validator.
    *
    * @param func The lambda used to calculate the new value.
+   * @param maxAttempts The maximum number of times the spin loop may run
+   *        before rejecting the update.
    * @return The current value after the update has occurred (or been rejected
    *         as invalid).
    */
-  T Swap(UpdateFunc func)
+  T Swap(UpdateFunc func, int maxAttempts = 0)
   {
     T oldValue, newValue;
+    int attempts{ 0 };
 
     for (;;)
     {
       oldValue = Value();
       newValue = func(oldValue);
+      attempts++;
 
-      if (CompareAndSet(oldValue, newValue))
+      if (CompareAndSet(oldValue, newValue)
+          || (maxAttempts > 0 && attempts >= maxAttempts))
       {
         break;
       }
