@@ -1,7 +1,15 @@
 #pragma once
 
+#if __cplusplus == 201406
+  #define CPP17
+#endif
+
 #include <mutex>
 #include <functional>
+
+#ifdef CPP17
+#include <shared_mutex>
+#endif
 
 /**
  * Atoms provide a way to manage shared, synchronous, independent state.
@@ -67,7 +75,12 @@ public:
    */
   T Value()
   {
+#ifdef CPP17
+    std::shared_lock<std::shared_mutex> lock(mLock);
+#else
     std::lock_guard<std::mutex> rlock(mReadMutex);
+#endif
+
     return mValue;
   }
 
@@ -84,8 +97,12 @@ public:
    */
   bool CompareAndSet(const T& oldValue, const T& newValue)
   {
+#ifdef CPP17
+    std::unique_lock<std::shared_mutex> lock(mLock);
+#else
     std::lock_guard<std::mutex> rlock(mReadMutex);
     std::lock_guard<std::mutex> wlock(mWriteMutex);
+#endif
 
     if (mValue == oldValue && isValid(newValue))
     {
@@ -110,8 +127,12 @@ public:
    */
   T Reset(const T& newValue)
   {
+#ifdef CPP17
+    std::unique_lock<std::shared_mutex> lock(mLock);
+#else
     std::lock_guard<std::mutex> rlock(mReadMutex);
     std::lock_guard<std::mutex> wlock(mWriteMutex);
+#endif
 
     if (isValid(newValue))
     {
@@ -142,8 +163,12 @@ public:
    */
   T Reset(UpdateFunc func)
   {
+#ifdef CPP17
+    std::unique_lock<std::shared_mutex> lock(mLock);
+#else
     std::lock_guard<std::mutex> rlock(mReadMutex);
     std::lock_guard<std::mutex> wlock(mWriteMutex);
+#endif
 
     T newValue = func(mValue);
 
@@ -173,6 +198,12 @@ public:
    * the value will always be the result of the application of the supplied
    * lambda to the current value, atomically. However, because the lambda may be
    * called multiple times, it must be free of side effects.
+   *
+   * @note If the new value fails validation (which can only happen when a
+   *       custom validator is provided at construction) the CompareAndSet()
+   *       will fail, triggering another iteration of the spin loop. This
+   *       has the potential to cause an infinite loop. Care must be taken
+   *       when using this method and a custom validator.
    *
    * @param func The lambda used to calculate the new value.
    * @return The current value after the update has occurred (or been rejected
@@ -215,6 +246,10 @@ private:
 
   ValidateFunc mValidator;
 
+#ifdef CPP17
+  mutable std::shared_mutex mLock;
+#else
   std::mutex mReadMutex;
   std::mutex mWriteMutex;
+#endif
 };
