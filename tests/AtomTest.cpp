@@ -1,5 +1,5 @@
-#include "catch.hh"
-#include "Atom.h"
+#include <catch.hh>
+#include <Atom.h>
 
 TEST_CASE("Initialization", "[Atom]")
 {

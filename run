@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-cmake .
+mkdir -p build
+cd build
+cmake ..
 make
 ./concurrent
+cd ..
