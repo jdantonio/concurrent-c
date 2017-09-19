@@ -17,6 +17,38 @@ TEST_CASE("Initialization", "[Atom]")
   REQUIRE( actual == expected );
 }
 
+TEST_CASE("Assignment", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
+
+  ValueType actual, expected;
+
+  AtomType subject(0);
+
+  expected = 100;
+
+  subject = expected;
+  REQUIRE( subject.Value() == expected );
+}
+
+TEST_CASE("== and !=", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
+
+  ValueType initial, actual, expected;
+
+  initial = 0;
+  AtomType subject(initial);
+
+  expected = subject.Value();
+  REQUIRE( subject == expected );
+
+  expected = subject.Value() + 100;
+  REQUIRE( subject != expected );
+}
+
 TEST_CASE("Compare", "[Atom]")
 {
   typedef uint64_t ValueType;

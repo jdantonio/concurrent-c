@@ -77,7 +77,60 @@ public:
   virtual ~Atom() {  }
 
   /**
-   * Safely obtain a copy of the current value.
+   * Atomically overwrite the current value with the new value.
+   *
+   * @note Does not perform validation of the new value.
+   *
+   * @param newValue The intended new value.
+   */
+  void operator = (const T& newValue)
+  {
+#ifdef CPP17
+    std::unique_lock<std::shared_mutex> lock(mLock);
+#else
+    std::lock_guard<std::mutex> rlock(mReadMutex);
+    std::lock_guard<std::mutex> wlock(mWriteMutex);
+#endif
+
+    mValue = newValue;
+  }
+
+  /**
+   * Atomically compare the current value to the given value.
+   *
+   * @param otherValue The value to compare against.
+   * @return `true` if the values are equal else `false`.
+   */
+  bool operator == (const T& otherValue)
+  {
+#ifdef CPP17
+    std::shared_lock<std::shared_mutex> lock(mLock);
+#else
+    std::lock_guard<std::mutex> rlock(mReadMutex);
+#endif
+
+    return mValue == otherValue;
+  }
+
+  /**
+   * Atomically compare the current value to the given value.
+   *
+   * @param otherValue The value to compare against.
+   * @return `true` if the value are not equal else `false`.
+   */
+  bool operator != (const T& otherValue)
+  {
+#ifdef CPP17
+    std::shared_lock<std::shared_mutex> lock(mLock);
+#else
+    std::lock_guard<std::mutex> rlock(mReadMutex);
+#endif
+
+    return mValue != otherValue;
+  }
+
+  /**
+   * Atomically obtain a copy of the current value.
    *
    * @return The current value.
    */
