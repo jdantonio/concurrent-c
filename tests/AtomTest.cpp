@@ -17,6 +17,29 @@ TEST_CASE("Initialization", "[Atom]")
   REQUIRE( actual == expected );
 }
 
+TEST_CASE("Compare", "[Atom]")
+{
+  typedef uint64_t ValueType;
+  typedef Atom<ValueType> AtomType;
+
+  ValueType initial, actual, expected;
+
+  initial = 0;
+  AtomType subject(initial);
+
+  expected = subject.Value();
+  actual = subject.Compare(
+      [expected](ValueType currentValue)
+      { return expected == currentValue; });
+  REQUIRE( actual );
+
+  expected = subject.Value() + 100;
+  actual = subject.Compare(
+      [expected](ValueType currentValue)
+      { return expected == currentValue; });
+  REQUIRE( !actual );
+}
+
 TEST_CASE("CompareAndSet (without validation)", "[Atom]")
 {
   typedef uint64_t ValueType;

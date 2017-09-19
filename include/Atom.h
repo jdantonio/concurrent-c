@@ -54,6 +54,14 @@ public:
   typedef std::function<bool(const T& newValue)> ValidateFunc;
 
   /**
+   * A function for comparing the current value.
+   *
+   * @param currentValue The current value.
+   * @return `true` if the comparison is successful else `false`.
+   **/
+  typedef std::function<bool(const T& currentValue)> ComparatorFunc;
+
+  /**
    * Constructs a new Atom with the given initial value and optional
    * validation function.
    *
@@ -82,6 +90,27 @@ public:
 #endif
 
     return mValue;
+  }
+
+  /**
+   * Atomically compares the current value using the given block. The current
+   * value is passed to the comparator function and the return value of the
+   * comparator is returned to the caller. This is useful when using a
+   * complex comparison such as a range or matching against multiple
+   * possible values.
+   *
+   * @param func The lambda used to evaluate the current value.
+   * @return `true` if the comparison is successful else `false`.
+   */
+  bool Compare(ComparatorFunc func)
+  {
+#ifdef CPP17
+    std::shared_lock<std::shared_mutex> lock(mLock);
+#else
+    std::lock_guard<std::mutex> rlock(mReadMutex);
+#endif
+
+    return func(mValue);
   }
 
   /**
