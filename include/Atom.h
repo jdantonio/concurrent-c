@@ -41,6 +41,7 @@ public:
    * A function used to calculate the new value based on the current value.
    *
    * @param currentValue The current value.
+   *
    * @return The new value which will be validated and possibly saved.
    */
   typedef std::function<T(const T& currentValue)> UpdateFunc;
@@ -49,6 +50,7 @@ public:
    * A function for validating the new value.
    *
    * @param newValue The new value.
+   *
    * @return `true` if the new value is valid else `false`.
    **/
   typedef std::function<bool(const T& newValue)> ValidateFunc;
@@ -57,9 +59,24 @@ public:
    * A function for comparing the current value.
    *
    * @param currentValue The current value.
+   *
    * @return `true` if the comparison is successful else `false`.
    **/
   typedef std::function<bool(const T& currentValue)> ComparatorFunc;
+
+  /**
+   * A function for working with the current value without modifying it.
+   *
+   * @param currentValue The current value.
+   **/
+  typedef std::function<void(const T& currentValue)> WithFunc;
+
+  /**
+   * A function for modifying the current value in place.
+   *
+   * @param currentValue The current value.
+   **/
+  typedef std::function<void(T& currentValue)> ModifyFunc;
 
   /**
    * Constructs a new Atom with the given initial value and optional
@@ -86,10 +103,9 @@ public:
   void operator = (const T& newValue)
   {
 #ifdef CPP17
-    std::unique_lock<std::shared_mutex> lock(mLock);
+    std::unique_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
-    std::lock_guard<std::mutex> wlock(mWriteMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     mValue = newValue;
@@ -99,14 +115,15 @@ public:
    * Atomically compare the current value to the given value.
    *
    * @param otherValue The value to compare against.
+   *
    * @return `true` if the values are equal else `false`.
    */
   bool operator == (const T& otherValue)
   {
 #ifdef CPP17
-    std::shared_lock<std::shared_mutex> lock(mLock);
+    std::shared_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     return mValue == otherValue;
@@ -116,14 +133,15 @@ public:
    * Atomically compare the current value to the given value.
    *
    * @param otherValue The value to compare against.
+   *
    * @return `true` if the value are not equal else `false`.
    */
   bool operator != (const T& otherValue)
   {
 #ifdef CPP17
-    std::shared_lock<std::shared_mutex> lock(mLock);
+    std::shared_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     return mValue != otherValue;
@@ -137,9 +155,9 @@ public:
   T Value()
   {
 #ifdef CPP17
-    std::shared_lock<std::shared_mutex> lock(mLock);
+    std::shared_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     return mValue;
@@ -153,14 +171,15 @@ public:
    * possible values.
    *
    * @param func The lambda used to evaluate the current value.
+   *
    * @return `true` if the comparison is successful else `false`.
    */
   bool Compare(ComparatorFunc func)
   {
 #ifdef CPP17
-    std::shared_lock<std::shared_mutex> lock(mLock);
+    std::shared_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     return func(mValue);
@@ -180,10 +199,9 @@ public:
   bool CompareAndSet(const T& oldValue, const T& newValue)
   {
 #ifdef CPP17
-    std::unique_lock<std::shared_mutex> lock(mLock);
+    std::unique_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
-    std::lock_guard<std::mutex> wlock(mWriteMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     if (mValue == oldValue && isValid(newValue))
@@ -210,10 +228,9 @@ public:
   T Reset(const T& newValue)
   {
 #ifdef CPP17
-    std::unique_lock<std::shared_mutex> lock(mLock);
+    std::unique_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
-    std::lock_guard<std::mutex> wlock(mWriteMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     if (isValid(newValue))
@@ -240,16 +257,16 @@ public:
    * keep the amount of time spent in the write lock to a minium.
    *
    * @param func The lambda used to calculate the new value.
+   *
    * @return The current value after the update has occurred (or been rejected
    *         as invalid).
    */
   T Reset(UpdateFunc func)
   {
 #ifdef CPP17
-    std::unique_lock<std::shared_mutex> lock(mLock);
+    std::unique_lock<std::shared_mutex> lock(mMutex);
 #else
-    std::lock_guard<std::mutex> rlock(mReadMutex);
-    std::lock_guard<std::mutex> wlock(mWriteMutex);
+    std::lock_guard<std::mutex> rlock(mMutex);
 #endif
 
     T newValue = func(mValue);
@@ -290,6 +307,7 @@ public:
    * @param func The lambda used to calculate the new value.
    * @param maxAttempts The maximum number of times the spin loop may run
    *        before rejecting the update.
+   *
    * @return The current value after the update has occurred (or been rejected
    *         as invalid).
    */
@@ -314,12 +332,57 @@ public:
     return newValue;
   }
 
+  /**
+   * Atomically calls the lambda with the current value but does not allow the
+   * current value to be modified. Allows the current value to be used in
+   * compound/complex operations in a performant way (by passing a reference).
+   *
+   * @param func The lambda used to operate with the current value.
+   */
+  void With(WithFunc func)
+  {
+#ifdef CPP17
+    std::shared_lock<std::shared_mutex> lock(mMutex);
+#else
+    std::lock_guard<std::mutex> rlock(mMutex);
+#endif
+
+    func(mValue);
+  }
+
+  /**
+   * Atomically calls the lambda with a mutable reference to the current value.
+   * Allows the value to be modified without copying. Useful when the value is
+   * a large object or struct and only a small number of fields need to be
+   * changed. Because the value object is being operated on directly via
+   * reference no validation is performed.
+   *
+   * @note Does not perform validation of the new value.
+   *
+   * @param func The lambda used to modify the current value.
+   *
+   * @return The final value of the atom after all operations are complete.
+   */
+  T Modify(ModifyFunc func)
+  {
+#ifdef CPP17
+    std::unique_lock<std::shared_mutex> lock(mMutex);
+#else
+    std::lock_guard<std::mutex> rlock(mMutex);
+#endif
+
+    func(mValue);
+
+    return mValue;
+  }
+
 protected:
 
   /**
    * Validates the new value against the validator function.
    *
    * @param newValue The value to be validated.
+   *
    * @return `true` is the new value is valid else `false`.
    */
   bool isValid(const T& newValue)
@@ -334,9 +397,8 @@ private:
   ValidateFunc mValidator;
 
 #ifdef CPP17
-  mutable std::shared_mutex mLock;
+  mutable std::shared_mutex mMutex;
 #else
-  std::mutex mReadMutex;
-  std::mutex mWriteMutex;
+  std::mutex mMutex;
 #endif
 };
